@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="./asset/navbar_logo.png" type="image/png">
+    <title>Entrance Exam Login</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background-color: #003a1d;
+            color: #ffffff;
+        }
+        .login-container {
+            max-width: 100%;
+            width: 550px;
+            margin: 20px auto;
+            padding: 25px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            color: #004b23;
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .logo {
+            max-width: 180px;
+        }
+        .btn-primary {
+            background-color: #004b23;
+            border-color: #004b23;
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background-color: #003d1c;
+            border-color: #003d1c;
+        }
+        .btn-primary:disabled {
+            background-color: #004b23;
+            border-color: #004b23;
+            color: #ffffff;
+            opacity: 1;
+        }
+        .password-container {
+            position: relative;
+        }
+        .password-toggle {
+            position: absolute;
+            top: 75%;
+            right: 10px;
+            transform: translateY(-50%);
+            cursor: pointer;
+        }
+        .form-control.is-invalid ~ .password-toggle {
+            top: calc(50% - 12px);
+        }
+        .alert-danger {
+            display: none;
+        }
+        .alert-danger.show {
+            display: block;
+        }
+        .form-control.is-valid {
+            border-color: #28a745;
+        }
+        .form-control.is-invalid {
+            border-color: #dc3545;
+        }
+        .device-block {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            color: white;
+            text-align: center;
+            padding: 2rem;
+        }
+        .timer-container {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .timer {
+            text-align: center;
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #004b23;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .timer i {
+            font-size: 1.2em;
+            margin-right: 8px;
+        }
+        .timer.countdown {
+            color: #dc3545;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        @media (max-width: 1024px) {
+            .device-block {
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+            .login-container {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="login-container mx-auto">
+            <div class="logo-container">
+                <img src="asset/navbar_logo.png" alt="Logo" class="logo img-fluid mx-auto d-block">
+            </div>
+            <h2 class="text-center mb-4">Entrance Examination Login</h2>
+            <div class="timer-container">
+                <div id="timer" class="timer">
+                    <i class="fas fa-clock"></i>
+                    <span>Checking exam schedule...</span>
+                </div>
+            </div>
+            <div id="login-error" class="alert alert-danger"></div>
+            <form id="login-form">
+                <div class="mb-4">
+                    <label for="email" class="form-label">Email Address</label>
+                    <input type="email" class="form-control form-control-lg" id="email" required placeholder="Enter your email">
+                </div>
+                <div class="mb-4 password-container">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control form-control-lg" id="password" required placeholder="Enter your password">
+                    <i class="password-toggle fas fa-eye-slash" onclick="togglePassword()"></i>
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg w-100">Login</button>
+                </div>
+            </form>
+            <p class="mt-3 text-center">Note: You can only login on your scheduled exam day.</p>
+        </div>
+    </div>
+    <div class="device-block">
+        <h1>⚠️ Device Not Supported</h1>
+        <p>Please use a desktop computer to access the entrance examination system.</p>
+        <p>This restriction is in place to ensure proper exam conditions and prevent cheating.</p>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+    import { db, auth } from './firebase_config.js';
+    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // Check if user is already logged in
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            window.location.href = 'EntranceExam.html';
+        }
+    });
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const errorElement = document.getElementById('login-error');
+        const submitButton = document.querySelector('button[type="submit"]');
+        errorElement.style.display = 'none';
+
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...';
+        submitButton.disabled = true;
+
+        try {
+            // Check if the email exists in either freshmen_examinees or transferee_examinees
+            const freshmenQuery = query(collection(db, 'freshmen_examinees'), where('email', '==', email));
+            const transfereeQuery = query(collection(db, 'transferee_examinees'), where('email', '==', email));
+            
+            const [freshmenDocs, transfereeDocs] = await Promise.all([
+                getDocs(freshmenQuery),
+                getDocs(transfereeQuery)
+            ]);
+
+            let examineeData;
+            if (!freshmenDocs.empty) {
+                examineeData = freshmenDocs.docs[0].data();
+            } else if (!transfereeDocs.empty) {
+                examineeData = transfereeDocs.docs[0].data();
+            } else {
+                throw new Error('No examinee found with this email.');
+            }
+
+            // Check if today is the exam date
+            const today = new Date();
+            const examDate = new Date(examineeData.examDate);
+            if (today.toDateString() !== examDate.toDateString()) {
+                throw new Error('Today is not your scheduled exam day.');
+            }
+
+            // Check if current time is within exam time range
+            const currentTime = today.getHours() * 60 + today.getMinutes();
+            const [startHour, startMinute] = examineeData.examStartTime.split(':');
+            const [endHour, endMinute] = examineeData.examEndTime.split(':');
+            const startTime = parseInt(startHour) * 60 + parseInt(startMinute);
+            const endTime = parseInt(endHour) * 60 + parseInt(endMinute);
+
+            if (currentTime < startTime) {
+                const minutesUntilStart = startTime - currentTime;
+                const hours = Math.floor(minutesUntilStart / 60);
+                const minutes = minutesUntilStart % 60;
+                throw new Error(`Exam starts in ${hours} hours and ${minutes} minutes.`);
+            } else if (currentTime > endTime) {
+                throw new Error('Exam time has ended.');
+            }
+
+            // If all checks pass, authenticate the user
+            await signInWithEmailAndPassword(auth, email, password);
+            window.location.href = 'EntranceExam.html';
+        } catch (error) {
+            let errorMessage = error.message || 'An error occurred. Please try again.';
+            errorElement.textContent = errorMessage;
+            errorElement.style.display = 'block';
+        } finally {
+            submitButton.innerHTML = 'Login';
+            submitButton.disabled = false;
+        }
+    });
+
+    function togglePassword() {
+        const passwordField = document.getElementById("password");
+        const passwordToggle = document.querySelector(".password-toggle");
+        if (passwordField.type === "password") {
+            passwordField.type = "text";
+            passwordToggle.classList.remove("fa-eye-slash");
+            passwordToggle.classList.add("fa-eye");
+        } else {
+            passwordField.type = "password";
+            passwordToggle.classList.remove("fa-eye");
+            passwordToggle.classList.add("fa-eye-slash");
+        }
+    }
+
+    window.togglePassword = togglePassword;
+
+    // Update timer every second
+    setInterval(async () => {
+        const email = document.getElementById('email').value;
+        if (!email) {
+            const timerElement = document.getElementById('timer');
+            timerElement.innerHTML = '<i class="fas fa-clock"></i><span>Enter your email to check exam schedule</span>';
+            return;
+        }
+
+        try {
+            const freshmenQuery = query(collection(db, 'freshmen_examinees'), where('email', '==', email));
+            const transfereeQuery = query(collection(db, 'transferee_examinees'), where('email', '==', email));
+            
+            const [freshmenDocs, transfereeDocs] = await Promise.all([
+                getDocs(freshmenQuery),
+                getDocs(transfereeQuery)
+            ]);
+
+            let examineeData;
+            if (!freshmenDocs.empty) {
+                examineeData = freshmenDocs.docs[0].data();
+            } else if (!transfereeDocs.empty) {
+                examineeData = transfereeDocs.docs[0].data();
+            } else {
+                const timerElement = document.getElementById('timer');
+                timerElement.innerHTML = '<i class="fas fa-exclamation-circle"></i><span>No exam schedule found</span>';
+                return;
+            }
+
+            const now = new Date();
+            const [startHour, startMinute] = examineeData.examStartTime.split(':');
+            const [endHour, endMinute] = examineeData.examEndTime.split(':');
+            
+            const examStart = new Date(now);
+            examStart.setHours(parseInt(startHour), parseInt(startMinute), 0);
+            
+            const examEnd = new Date(now);
+            examEnd.setHours(parseInt(endHour), parseInt(endMinute), 0);
+
+            const timerElement = document.getElementById('timer');
+            
+            if (now < examStart) {
+                const diff = examStart - now;
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                timerElement.innerHTML = `
+                    <i class="fas fa-hourglass-start"></i>
+                    <span>Exam starts in: ${hours}h ${minutes}m ${seconds}s</span>
+                `;
+                timerElement.classList.remove('countdown');
+            } else if (now > examEnd) {
+                timerElement.innerHTML = `
+                    <i class="fas fa-clock-slash"></i>
+                    <span>Exam time has ended</span>
+                `;
+                timerElement.classList.remove('countdown');
+            } else {
+                const diff = examEnd - now;
+                const hours = Math.floor(diff / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                timerElement.innerHTML = `
+                    <i class="fas fa-hourglass-half"></i>
+                    <span>Time remaining: ${hours}h ${minutes}m ${seconds}s</span>
+                `;
+                if (hours === 0 && minutes < 30) {
+                    timerElement.classList.add('countdown');
+                } else {
+                    timerElement.classList.remove('countdown');
+                }
+            }
+        } catch (error) {
+            console.error('Error updating timer:', error);
+            const timerElement = document.getElementById('timer');
+            timerElement.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Error checking exam schedule</span>';
+        }
+    }, 1000);
+    </script>
+</body>
+</html>

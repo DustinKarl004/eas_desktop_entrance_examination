@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="./asset/navbar_logo.png" type="image/png">
+    <title>Welcome to CdM Admission System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #004b23, #006400);
+            font-family: 'Poppins', sans-serif;
+            overflow: hidden;
+        }
+        .loading-container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            width: 90%;
+            max-width: 400px;
+        }
+        .logo {
+            width: 50%;
+            max-width: 180px;
+            height: auto;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+        .loading-text {
+            color: white;
+            font-size: 5vw;
+            font-weight: 600;
+            margin-top: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .progress-bar {
+            width: 80%;
+            height: 6px;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+        .progress {
+            width: 0%;
+            height: 100%;
+            background-color: #fdc500;
+            animation: progress 4s linear;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        @keyframes progress {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        .particle {
+            position: absolute;
+            display: block;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            animation: rise 15s infinite ease-in;
+        }
+        @keyframes rise {
+            0% {
+                opacity: 0;
+                transform: translateY(0) scale(1);
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-1000px) scale(0.5);
+            }
+        }
+        @media (min-width: 768px) {
+            .loading-text {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="particles">
+        <div class="particle" style="left:5%;width:7px;height:7px;animation-delay:0s;"></div>
+        <div class="particle" style="left:15%;width:5px;height:5px;animation-delay:1s;"></div>
+        <div class="particle" style="left:25%;width:9px;height:9px;animation-delay:2s;"></div>
+        <div class="particle" style="left:35%;width:6px;height:6px;animation-delay:0.5s;"></div>
+        <div class="particle" style="left:45%;width:8px;height:8px;animation-delay:1.5s;"></div>
+        <div class="particle" style="left:55%;width:4px;height:4px;animation-delay:3s;"></div>
+        <div class="particle" style="left:65%;width:7px;height:7px;animation-delay:2.5s;"></div>
+        <div class="particle" style="left:75%;width:5px;height:5px;animation-delay:1s;"></div>
+        <div class="particle" style="left:85%;width:6px;height:6px;animation-delay:0.5s;"></div>
+        <div class="particle" style="left:95%;width:8px;height:8px;animation-delay:2s;"></div>
+    </div>
+    <div class="loading-container">
+        <img src="asset/navbar_logo.png" alt="CdM Logo" class="logo">
+        <div class="progress-bar">
+            <div class="progress"></div>
+        </div>
+        <div class="loading-text">Welcome to CdM Admission System</div>
+    </div>
+
+    <script>
+        setTimeout(() => {
+            window.location.href = 'login.html';
+        }, 6000); // Redirect after 4 seconds
+    </script>
+</body>
+</html>

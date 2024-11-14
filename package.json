@@ -1,0 +1,19 @@
+{
+  "name": "eas-admin-desktop-application",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "electron": "^32.1.0"
+  },
+  "dependencies": {
+    "emailjs-com": "^3.2.0",
+    "firebase": "^10.13.2"
+  }
+}

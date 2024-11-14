@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="./asset/navbar_logo.png" type="image/png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Entrance Exam</title>
+    <link rel="stylesheet" href="EntranceExam.css">
+    
+</head>
+
+<body>
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Added timeout modal -->
+    <div id="timeout-modal" class="timeout-modal">
+        <div class="timeout-content">
+            <i class="fas fa-clock timeout-icon"></i>
+            <h2>Time's Up!</h2>
+            <p>Your time for this section has expired. Any unanswered questions will be marked as incorrect. Moving to next subject...</p>
+        </div>
+    </div>
+
+    <header class="header">
+        <div class="header-left">
+            <img src="./asset/navbar_logo.png" alt="School Logo" class="logo">
+            <div class="school-name">Colegio De Montalban</div>
+        </div>
+        <div class="header-right">
+            <span class="user-email" id="user-email"></span>
+            <button class="logout-btn" id="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <section class="exam-section">
+            <h2>Entrance Exam Subjects</h2>
+            <ul class="subject-list" id="subject-list">
+                <!-- Subjects will be loaded dynamically -->
+            </ul>
+        </section>
+
+        <section class="exam-section">
+            <div id="questionnaire-content">
+                <div class="instruction-container">
+                    <div id="start-exam-section">
+                        <h3>Entrance Examination Instructions</h3>
+                        <p>Welcome to the Colegio De Montalban entrance examination.</p>
+                        <p>Please read the following instructions carefully:</p>
+                        <ul style="text-align: left; margin: 2rem 0;">
+                            <li>Each question has only one correct answer</li>
+                            <li>You must select an answer before proceeding to the next question</li>
+                            <li>You can navigate between questions using the Next and Back buttons</li>
+                            <li>Your answers will be automatically saved</li>
+                            <li>Once you complete a subject, you cannot return to it</li>
+                            <li>Each subject has a 30-minutes time limit</li>
+                            <li>Any remaining time from a subject will be added to the next subject as bonus time</li>
+                            <li>If time runs out, any unanswered questions will be marked as incorrect</li>
+                            <li>The exam will automatically end at your scheduled end time</li>
+                            <li>Any incomplete subjects at end time will be marked as incorrect</li>
+                        </ul>
+                        <button class="nav-button" onclick="checkAuthAndStartExam()">
+                            Start Exam
+                        </button>
+                    </div>
+                    <div id="continue-exam-section" style="display: none;">
+                        <h3>Continue Your Entrance Examination</h3>
+                        <p>Welcome back! You have completed some subjects.</p>
+                        <p>Please continue with your remaining subjects:</p>
+                        <div id="remaining-subjects" style="margin: 2rem 0; text-align: left;">
+                            <!-- Will be populated dynamically -->
+                        </div>
+                        <button class="nav-button" onclick="checkAuthAndStartExam()">
+                            Continue Exam
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="device-block">
+        <h1>⚠️ Device Not Supported</h1>
+        <p>Please use a desktop computer to access the entrance examination system.</p>
+        <p>This restriction is in place to ensure proper exam conditions and prevent cheating.</p>
+    </div>
+
+    <script type="module" src="EntranceExam.js"></script>
+    
+    
+    </body>
+</html>
