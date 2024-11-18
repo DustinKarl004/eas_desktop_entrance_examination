@@ -286,13 +286,14 @@
             }
 
             const now = new Date();
+            const examDate = new Date(examineeData.examDate);
             const [startHour, startMinute] = examineeData.examStartTime.split(':');
             const [endHour, endMinute] = examineeData.examEndTime.split(':');
             
-            const examStart = new Date(now);
+            const examStart = new Date(examDate);
             examStart.setHours(parseInt(startHour), parseInt(startMinute), 0);
             
-            const examEnd = new Date(now);
+            const examEnd = new Date(examDate);
             examEnd.setHours(parseInt(endHour), parseInt(endMinute), 0);
 
             const timerElement = document.getElementById('timer');

@@ -11,9 +11,6 @@ let completedSubjects = [];
 let subjectList = [];
 let currentSubjectPage = 0;
 let subjectsPerPage = 6;
-let baseTimeLimit = 30 * 60; // Base 30 minute in seconds
-let timeLimit = baseTimeLimit;
-let bonusTime = 0; // Store bonus time from previous subjects
 let timerInterval;
 let timerElement;
 let examStarted = false;
@@ -26,13 +23,13 @@ const loadingOverlay = document.getElementById('loading-overlay');
 
 // Disable right-click and copy
 document.addEventListener('contextmenu', (e) => {
-    if (examInProgress) {
+    if (examStarted) { // Changed from examInProgress to examStarted
         e.preventDefault();
     }
 });
 
 document.addEventListener('copy', (e) => {
-    if (examInProgress) {
+    if (examStarted) { // Changed from examInProgress to examStarted
         e.preventDefault(); 
     }
 });
@@ -70,75 +67,16 @@ onAuthStateChanged(auth, async (user) => {
                 // If exam end time has passed, mark all as completed
                 if (today > examEndTime) {
                     await loadSubjects();
-                    // Mark all subjects as completed and unanswered questions as incorrect
-                    for (const subject of subjectList) {
-                        if (!completedSubjects.includes(subject.name.toLowerCase())) {
-                            currentSubject = subject.name.toLowerCase();
-                            // Load questions for this subject
-                            const docRef = doc(db, "EntranceExamQuestion", currentSubject);
-                            const docSnap = await getDoc(docRef);
-                            if (docSnap.exists()) {
-                                const questions = Object.keys(docSnap.data());
-                                // Mark all questions as incorrect/unanswered
-                                questions.forEach(qNum => {
-                                    userAnswers[qNum] = "";
-                                });
-                            }
-                            completedSubjects.push(currentSubject);
-                            await saveUserAnswers();
-                        }
-                    }
+                    await markAllSubjectsAsCompleted();
                     showCompletionMessage();
                     loadingOverlay.style.display = 'none';
-                    return;
-                }
-
-                // Check if current time is past end time
-                if (today > examEndTime) {
-                    // Mark remaining subjects as completed with incorrect answers
-                    await loadSubjects();
-                    for (const subject of subjectList) {
-                        if (!completedSubjects.includes(subject.name.toLowerCase())) {
-                            currentSubject = subject.name.toLowerCase();
-                            const docRef = doc(db, "EntranceExamQuestion", currentSubject);
-                            const docSnap = await getDoc(docRef);
-                            if (docSnap.exists()) {
-                                const questions = Object.keys(docSnap.data());
-                                questions.forEach(qNum => {
-                                    userAnswers[qNum] = ""; // Empty string for incorrect/unanswered
-                                });
-                            }
-                            completedSubjects.push(currentSubject);
-                            await saveUserAnswers();
-                        }
-                    }
-                    await signOut(auth);
-                    window.location.href = './login.html';
                     return;
                 }
 
                 // Set interval to check end time
                 setInterval(async () => {
                     if (new Date() > examEndTime) {
-                        // Mark remaining subjects as completed with incorrect answers
-                        await loadSubjects();
-                        for (const subject of subjectList) {
-                            if (!completedSubjects.includes(subject.name.toLowerCase())) {
-                                currentSubject = subject.name.toLowerCase();
-                                const docRef = doc(db, "EntranceExamQuestion", currentSubject);
-                                const docSnap = await getDoc(docRef);
-                                if (docSnap.exists()) {
-                                    const questions = Object.keys(docSnap.data());
-                                    questions.forEach(qNum => {
-                                        userAnswers[qNum] = ""; // Empty string for incorrect/unanswered
-                                    });
-                                }
-                                completedSubjects.push(currentSubject);
-                                await saveUserAnswers();
-                            }
-                        }
-                        await signOut(auth);
-                        window.location.href = './login.html'; 
+                        await handleExamTimeout();
                     }
                 }, 1000);
             }
@@ -156,55 +94,15 @@ onAuthStateChanged(auth, async (user) => {
         if (allCompleted) {
             showCompletionMessage();
         } else {
-            // Mark any incomplete subjects with unanswered questions as incorrect
-            for (const subject of subjectList) {
-                if (!completedSubjects.includes(subject.name.toLowerCase())) {
-                    const docRef = doc(db, "EntranceExamQuestion", subject.name.toLowerCase());
-                    const docSnap = await getDoc(docRef);
-                    if (docSnap.exists()) {
-                        const questions = Object.keys(docSnap.data());
-                        const userAnswersRef = doc(db, "EntranceExam", currentUser.email);
-                        const userAnswersSnap = await getDoc(userAnswersRef);
-                        const userAnswersData = userAnswersSnap.exists() ? userAnswersSnap.data() : {};
-                        const subjectAnswers = userAnswersData[subject.name.toLowerCase()] || {};
-                        
-                        // Check if subject has any answers but is incomplete
-                        if (Object.keys(subjectAnswers).length > 0 && 
-                            Object.keys(subjectAnswers).length < questions.length) {
-                            // Mark remaining questions as incorrect
-                            questions.forEach(qNum => {
-                                if (!subjectAnswers[qNum]) {
-                                    subjectAnswers[qNum] = "";
-                                }
-                            });
-                            // Save the updated answers
-                            await setDoc(userAnswersRef, {
-                                [subject.name.toLowerCase()]: subjectAnswers
-                            }, { merge: true });
-                        }
-                        // If subject has no answers at all, mark all as incorrect
-                        else if (Object.keys(subjectAnswers).length === 0) {
-                            const emptyAnswers = {};
-                            questions.forEach(qNum => {
-                                emptyAnswers[qNum] = "";
-                            });
-                            await setDoc(userAnswersRef, {
-                                [subject.name.toLowerCase()]: emptyAnswers
-                            }, { merge: true });
-                        }
-                    }
-                }
-            }
-            
+            await markIncompleteSubjects();
             checkExamProgress();
+            
             // Check if there's a saved timer state
             const savedTimerState = localStorage.getItem('examTimer');
             if (savedTimerState) {
-                const {subject, startTime, timeRemaining, savedBonusTime} = JSON.parse(savedTimerState);
+                const {subject, startTime} = JSON.parse(savedTimerState);
                 if (subject === currentSubject) {
                     examStartTime = startTime;
-                    timeLimit = timeRemaining;
-                    bonusTime = savedBonusTime || 0;
                     examStarted = true;
                     examInProgress = true;
                     document.getElementById('logout-btn').disabled = true;
@@ -220,15 +118,138 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
+async function markAllSubjectsAsCompleted() {
+    const userDocRef = doc(db, "EntranceExam", currentUser.email);
+    const userDocSnap = await getDoc(userDocRef);
+    const existingData = userDocSnap.exists() ? userDocSnap.data() : {};
+    const existingCompletedSubjects = existingData.completedSubjects || [];
+
+    // Create ordered completed subjects array based on subjectList order
+    const orderedCompletedSubjects = subjectList
+        .map(subject => subject.name.toLowerCase())
+        .filter(subjectName => !existingCompletedSubjects.includes(subjectName));
+
+    // Preserve existing answers for subjects that have them
+    for (const subjectName of orderedCompletedSubjects) {
+        const docRef = doc(db, "EntranceExamQuestion", subjectName);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            const questions = Object.keys(docSnap.data());
+            
+            // Check if user has existing answers for this subject
+            const existingAnswers = existingData[subjectName] || {};
+            const finalAnswers = {};
+            
+            questions.forEach(qNum => {
+                finalAnswers[qNum] = existingAnswers[qNum] || ""; // Keep existing answer or use empty string
+            });
+            
+            // Update user answers for this subject
+            await setDoc(userDocRef, {
+                [subjectName]: finalAnswers,
+                completedSubjects: [...existingCompletedSubjects, subjectName]
+            }, { merge: true });
+        }
+    }
+    
+    // Update local completedSubjects array
+    const updatedUserDoc = await getDoc(userDocRef);
+    if (updatedUserDoc.exists()) {
+        completedSubjects = updatedUserDoc.data().completedSubjects || [];
+    }
+}
+
+async function markIncompleteSubjects() {
+    for (const subject of subjectList) {
+        if (!completedSubjects.includes(subject.name.toLowerCase())) {
+            const docRef = doc(db, "EntranceExamQuestion", subject.name.toLowerCase());
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const questions = Object.keys(docSnap.data());
+                const userAnswersRef = doc(db, "EntranceExam", currentUser.email);
+                const userAnswersSnap = await getDoc(userAnswersRef);
+                const userAnswersData = userAnswersSnap.exists() ? userAnswersSnap.data() : {};
+                const subjectAnswers = userAnswersData[subject.name.toLowerCase()] || {};
+                
+                if (Object.keys(subjectAnswers).length > 0 && 
+                    Object.keys(subjectAnswers).length < questions.length) {
+                    questions.forEach(qNum => {
+                        if (!subjectAnswers[qNum]) {
+                            subjectAnswers[qNum] = "";
+                        }
+                    });
+                    await setDoc(userAnswersRef, {
+                        [subject.name.toLowerCase()]: subjectAnswers
+                    }, { merge: true });
+                } else if (Object.keys(subjectAnswers).length === 0) {
+                    const emptyAnswers = {};
+                    questions.forEach(qNum => {
+                        emptyAnswers[qNum] = "";
+                    });
+                    await setDoc(userAnswersRef, {
+                        [subject.name.toLowerCase()]: emptyAnswers
+                    }, { merge: true });
+                }
+            }
+        }
+    }
+}
+
+async function handleExamTimeout() {
+    examInProgress = false;
+    examStarted = false; // Added this line to ensure examStarted is also set to false
+    clearInterval(timerInterval);
+    localStorage.removeItem('examTimer');
+
+    // Save current answers before timeout
+    if (currentSubject && questions.length > 0) {
+        const userDocRef = doc(db, "EntranceExam", currentUser.email);
+        const userDocSnap = await getDoc(userDocRef);
+        const existingData = userDocSnap.exists() ? userDocSnap.data() : {};
+
+        // Create a copy of existing data to avoid modifying it directly
+        const updatedData = {...existingData};
+        
+        // Preserve all existing answers for all subjects
+        for (const subject of subjectList) {
+            const subjectName = subject.name.toLowerCase();
+            const existingAnswers = existingData[subjectName] || {};
+            
+            if (subjectName === currentSubject) {
+                // For current subject, merge existing answers with current answers
+                updatedData[subjectName] = {
+                    ...existingAnswers,
+                    ...userAnswers
+                };
+            } else {
+                // For other subjects, keep existing answers unchanged
+                updatedData[subjectName] = existingAnswers;
+            }
+        }
+
+        // Update completedSubjects array
+        const orderedSubjects = subjectList.map(subject => subject.name.toLowerCase());
+        updatedData.completedSubjects = orderedSubjects;
+
+        // Save all data in one operation
+        await setDoc(userDocRef, updatedData);
+    }
+    
+    // Show timeout message
+    const timeoutModal = document.getElementById('timeout-modal');
+    timeoutModal.style.display = 'flex';
+    
+    // Redirect after timeout
+    setTimeout(async () => {
+        timeoutModal.style.display = 'none';
+        await signOut(auth);
+        window.location.href = './login.html';
+    }, 2000);
+}
+
 function startCountdown() {
-    // If there's no saved timer state, initialize it
     if (!examStartTime) {
         examStartTime = Date.now();
-        timeLimit = baseTimeLimit + bonusTime; // Add bonus time to base time
-    } else {
-        // Calculate remaining time based on saved start time
-        const elapsedTime = Math.floor((Date.now() - examStartTime) / 1000);
-        timeLimit = Math.max(baseTimeLimit + bonusTime - elapsedTime, 0);
     }
     
     if (!timerElement) {
@@ -238,54 +259,54 @@ function startCountdown() {
         document.querySelector('.question-container').insertBefore(timerElement, document.querySelector('.question-container .progress-container'));
     }
 
-    // Clear existing interval if any
     if (timerInterval) {
         clearInterval(timerInterval);
     }
 
-    // Show bonus time animation if there is bonus time
-    if (bonusTime > 0) {
-        timerElement.classList.add('bonus-time');
-        setTimeout(() => {
-            timerElement.classList.remove('bonus-time');
-        }, 1000);
-    }
+    timerInterval = setInterval(async () => {
+        const now = new Date();
+        const diff = examEndTime - now;
 
-    timerInterval = setInterval(() => {
-        let minutes = Math.floor(timeLimit / 60);
-        let seconds = timeLimit % 60;
-
-        timerElement.textContent = `Time Remaining: ${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        if (bonusTime > 0) {
-            timerElement.textContent += ` (+${Math.floor(bonusTime/60)}:${(bonusTime%60).toString().padStart(2, '0')} bonus)`;
+        if (diff <= 0) {
+            clearInterval(timerInterval);
+            await handleExamTimeout();
+            return;
         }
 
-        // Save timer state to localStorage
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+        timerElement.textContent = `Time Remaining: ${hours}h ${minutes}m ${seconds}s`;
+
         localStorage.setItem('examTimer', JSON.stringify({
             subject: currentSubject,
-            startTime: examStartTime,
-            timeRemaining: timeLimit,
-            savedBonusTime: bonusTime
+            startTime: examStartTime
         }));
 
-        if (timeLimit > 0) {
-            timeLimit--;
-        } else {
-            clearInterval(timerInterval);
-            localStorage.removeItem('examTimer');
-            handleTimeOut();
-        }
     }, 1000);
 }
 
 async function handleTimeOut() {
     examInProgress = false;
-    // Mark all unanswered questions as incorrect
-    questions.forEach((question, index) => {
-        if (!userAnswers[question.questionNumber]) {
-            userAnswers[question.questionNumber] = ""; // Empty string indicates unanswered/incorrect
-        }
-    });
+    examStarted = false; // Added this line to ensure examStarted is also set to false
+    
+    // Save current answers before timeout
+    const userDocRef = doc(db, "EntranceExam", currentUser.email);
+    const userDocSnap = await getDoc(userDocRef);
+    const existingData = userDocSnap.exists() ? userDocSnap.data() : {};
+    
+    // Create updated data object with all existing answers
+    const updatedData = {...existingData};
+    
+    // Update current subject answers while preserving others
+    updatedData[currentSubject] = {
+        ...existingData[currentSubject],
+        ...userAnswers
+    };
+    
+    // Save all data
+    await setDoc(userDocRef, updatedData);
     
     // Show timeout modal
     const timeoutModal = document.getElementById('timeout-modal');
@@ -295,13 +316,10 @@ async function handleTimeOut() {
     setTimeout(async () => {
         timeoutModal.style.display = 'none';
         localStorage.removeItem('examTimer');
-        bonusTime = 0; // Reset bonus time when time runs out
         await saveUserAnswers();
         await finishExam();
     }, 2000);
-}
-
-async function loadSubjects() {
+}async function loadSubjects() {
     try {
         const querySnapshot = await getDocs(collection(db, "subjectlist"));
         subjectList = [];
@@ -324,7 +342,7 @@ async function loadSubjects() {
             currentSubject = subjectList[0].name.toLowerCase();
         }
 
-        updateSubjectListUI();
+         updateSubjectListUI();
 
     } catch (error) {
         console.error("Error loading subjects:", error);
@@ -410,6 +428,9 @@ async function loadUserAnswers() {
             const data = userDocSnap.data();
             if (data[currentSubject]) {
                 userAnswers = data[currentSubject];
+            } else {
+                // Initialize empty answers for current subject
+                userAnswers = {};
             }
         }
     } catch (error) {
@@ -429,10 +450,11 @@ async function saveUserAnswers() {
             updatedData = userDocSnap.data();
         }
         
+        // Only save answers for current subject
         updatedData[currentSubject] = userAnswers;
-        updatedData.completedSubjects = completedSubjects;
         
         await setDoc(userDocRef, updatedData, { merge: true });
+        
     } catch (error) {
         console.error("Error saving user answers:", error);
     }
@@ -440,11 +462,13 @@ async function saveUserAnswers() {
 
 function showCompletionMessage() {
     examInProgress = false;
+    examStarted = false; // Added this line to ensure examStarted is also set to false
     document.getElementById('questionnaire-content').innerHTML = `
         <div class="instruction-container">
             <h3>Entrance Exam Completed</h3>
             <p>Congratulations! You have completed all sections of the entrance exam.</p>
             <p>Your responses have been recorded.</p>
+            <p>You will be automatically logged out in 3 seconds...</p>
         </div>
     `;
     // Hide loading overlay and spinner when exam is complete
@@ -453,6 +477,12 @@ function showCompletionMessage() {
     document.getElementById('logout-btn').disabled = false;
     document.getElementById('logout-btn').style.display = 'block';
     localStorage.removeItem('examTimer');
+    
+    // Auto logout after 3 seconds
+    setTimeout(async () => {
+        await signOut(auth);
+        window.location.href = './login.html';
+    }, 3000);
 }
 
 window.logout = async function() {
@@ -611,9 +641,27 @@ window.validateAndFinish = async function() {
     finishButton.classList.add('loading');
     
     userAnswers[questions[currentQuestion].questionNumber] = selectedAnswer.value;
+    
+    // Check if all questions are answered
+    const allQuestionsAnswered = questions.every(q => userAnswers[q.questionNumber]);
+    
+    if (!allQuestionsAnswered) {
+        alert("Please answer all questions before finishing this subject");
+        return;
+    }
+    
     clearInterval(timerInterval);
     localStorage.removeItem('examTimer');
     await saveUserAnswers();
+    
+    // Only mark as completed if all questions are answered
+    const userDocRef = doc(db, "EntranceExam", currentUser.email);
+    await setDoc(userDocRef, {
+        completedSubjects: [...completedSubjects, currentSubject]
+    }, { merge: true });
+    
+    completedSubjects = [...completedSubjects, currentSubject];
+    updateSubjectListUI(); // Update UI immediately after marking subject as completed
     await finishExam();
 }
 
@@ -645,19 +693,10 @@ window.startNextSubject = function(subject) {
     loadUserAnswers().then(() => startExam());
 }
 
-
 async function finishExam() {
     examInProgress = false;
-    // Calculate remaining time as bonus for next subject
-    if (timeLimit > 0) {
-        bonusTime = timeLimit;
-    }
-
-    completedSubjects.push(currentSubject);
-    await saveUserAnswers();
     
-    updateSubjectListUI();
-    
+    // Get next incomplete subject
     const nextSubject = subjectList.find(subject => 
         !completedSubjects.includes(subject.name.toLowerCase())
     );
@@ -678,6 +717,5 @@ async function finishExam() {
         examStarted = false;
         document.getElementById('logout-btn').disabled = false;
         document.getElementById('logout-btn').style.display = 'block';
-        bonusTime = 0; // Reset bonus time when exam is complete
     }
-}   
+} 
