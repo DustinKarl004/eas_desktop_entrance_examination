@@ -23,16 +23,25 @@ const loadingOverlay = document.getElementById('loading-overlay');
 
 // Disable right-click and copy
 document.addEventListener('contextmenu', (e) => {
-    if (examStarted) { // Changed from examInProgress to examStarted
+    if (examStarted) {
+        e.preventDefault();
+    }
+}); 
+
+document.addEventListener('copy', (e) => {
+    if (examStarted) {
+        e.preventDefault(); 
+    }
+});
+
+// Disable text selection
+document.addEventListener('selectstart', (e) => {
+    if (examStarted) {
         e.preventDefault();
     }
 });
 
-document.addEventListener('copy', (e) => {
-    if (examStarted) { // Changed from examInProgress to examStarted
-        e.preventDefault(); 
-    }
-});
+
 
 // Check authentication state
 onAuthStateChanged(auth, async (user) => {
